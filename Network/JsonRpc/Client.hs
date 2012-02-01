@@ -7,7 +7,8 @@ module Network.JsonRpc.Client (
       notifyWithVersion,
       JsonRpcCall,
       JsonRpcVersion(..),
-      JsonRpcNotification
+      JsonRpcNotification,
+      JsonRpcException
 ) where
 
 import Network.JsonRpc.Common
@@ -16,23 +17,22 @@ import Network.HTTP
 import Network.Stream as NS
 import Network.URI
 import Control.Exception
-import Control.Monad
 import Data.Maybe
 import qualified Data.ByteString.Lazy as BS
 
 data JsonRpcVersion = Version1 | Version2
 
-remote :: (ToJSON a, JsonRpcCall b) => String -> String -> (a -> b)
+remote :: JsonRpcCall c => String -> String -> c
 remote = remoteWithVersion Version2
 
-notify :: (ToJSON a, JsonRpcNotification b) => String -> String -> (a -> b)
+notify :: JsonRpcNotification n => String -> String -> n
 notify = notifyWithVersion Version2
 
-remoteWithVersion :: (ToJSON a, JsonRpcCall b) => JsonRpcVersion -> String -> String -> (a -> b)
-remoteWithVersion version url nom = (\x -> marshalAndCall version url nom (\xs -> (toJSON x):xs))
+remoteWithVersion :: JsonRpcCall c => JsonRpcVersion -> String -> String -> c
+remoteWithVersion version url nom = marshalAndCall version url nom id
 
-notifyWithVersion :: (ToJSON a, JsonRpcNotification b) => JsonRpcVersion -> String -> String -> (a -> b)
-notifyWithVersion version url nom = (\x -> marshalAndNotify version url nom (\xs -> (toJSON x):xs))
+notifyWithVersion :: JsonRpcNotification n => JsonRpcVersion -> String -> String -> n
+notifyWithVersion version url nom = marshalAndNotify version url nom id
 
 class JsonRpcCall a where
   marshalAndCall :: JsonRpcVersion -> String -> String -> ([Value] -> [Value]) -> a
@@ -94,35 +94,35 @@ notificationv1 url request =
 
 sendPost :: String -> BS.ByteString -> IO (NS.Result (Response BS.ByteString))
 sendPost url payload =
-  let uri = fromMaybe (error "Invalid URI") (parseURI url)
+  let uri = fromMaybe (throw (JsonRpcException (-32029) "Invalid URI" Nothing)) (parseURI url)
       headers = [Header HdrUserAgent user_agent, Header HdrContentType "application/json", Header HdrContentLength (show (BS.length payload))]
       req = Request uri POST headers payload
   in simpleHTTP req
 
 processResponse :: (FromJSON a) => BS.ByteString -> Value -> IO a
 processResponse resp req_id =
-  let response = fromMaybe (error "Invalid server response") (decode' resp) :: Version2Response
+  let response = fromMaybe (throw (JsonRpcException (-32019) "Invalid server response" Nothing)) (decode' resp) :: Version2Response
       resp_id = getId response
   in if (resp_id == req_id || resp_id == Null) then
         do
           case (getReturnValue response) of
-              Left _ -> error "JSON-RPC error"
+              Left err -> throwIO err
               Right val -> case (fromJSON val) of
-                                Error _ -> error "Type mismatch"
+                                Error _ -> throwIO (JsonRpcException (-32009) "Type mismatch" Nothing)
                                 Success a -> return a
         else
-          error "Bad Id"
+          throwIO (JsonRpcException (-32039) "Invalid response id" Nothing)
 
 processResponsev1 :: (FromJSON a) => BS.ByteString -> Value -> IO a
 processResponsev1 resp req_id =
-  let response = fromMaybe (error "Invalid server response") (decode' resp) :: Version1Response
+  let response = fromMaybe (throw (JsonRpcException (-32019) "Invalid server response" Nothing)) (decode' resp) :: Version1Response
       resp_id = getId response
   in if (resp_id == req_id) then
         do
           case (getReturnValue response) of
-              Left _ -> error "JSON-RPC error"
+              Left err -> throwIO err
               Right val -> case (fromJSON val) of
-                                Error _ -> error "Type mismatch"
+                                Error _ -> throwIO (JsonRpcException (-32009) "Type mismatch" Nothing)
                                 Success a -> return a
         else
-          error "Bad Id"
+          throwIO (JsonRpcException (-32039) "Invalid response id" Nothing)
