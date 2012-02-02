@@ -2,9 +2,9 @@
 
 module Network.JsonRpc.Client (
       remote,
-      remoteWithVersion,
+      detailledRemote,
       notify,
-      notifyWithVersion,
+      detailledNotify,
       JsonRpcCall,
       JsonRpcVersion(..),
       JsonRpcNotification,
@@ -13,6 +13,7 @@ module Network.JsonRpc.Client (
 
 import Network.JsonRpc.Common
 import Data.Aeson
+import Data.Aeson.Types
 import Network.HTTP
 import Network.Stream as NS
 import Network.URI
@@ -23,40 +24,40 @@ import qualified Data.ByteString.Lazy as BS
 data JsonRpcVersion = Version1 | Version2
 
 remote :: JsonRpcCall c => String -> String -> c
-remote = remoteWithVersion Version2
+remote = detailledRemote Version2 []
 
 notify :: JsonRpcNotification n => String -> String -> n
-notify = notifyWithVersion Version2
+notify = detailledNotify Version2 []
 
-remoteWithVersion :: JsonRpcCall c => JsonRpcVersion -> String -> String -> c
-remoteWithVersion version url nom = marshalAndCall version url nom id
+detailledRemote :: JsonRpcCall c => JsonRpcVersion -> [Pair] -> String -> String -> c
+detailledRemote version custom_elems url nom = marshalAndCall version custom_elems url nom id
 
-notifyWithVersion :: JsonRpcNotification n => JsonRpcVersion -> String -> String -> n
-notifyWithVersion version url nom = marshalAndNotify version url nom id
+detailledNotify :: JsonRpcNotification n => JsonRpcVersion -> [Pair] -> String -> String -> n
+detailledNotify version custom_elems url nom = marshalAndNotify version custom_elems url nom id
 
 class JsonRpcCall a where
-  marshalAndCall :: JsonRpcVersion -> String -> String -> ([Value] -> [Value]) -> a
+  marshalAndCall :: JsonRpcVersion -> [Pair] -> String -> String -> ([Value] -> [Value]) -> a
 
 instance (ToJSON a, JsonRpcCall b) => JsonRpcCall (a -> b) where
-  marshalAndCall version url nom f = (\x -> marshalAndCall version url nom (\xs -> f ((toJSON x):xs)))
+  marshalAndCall version custom_elems url nom f = (\x -> marshalAndCall version custom_elems url nom (\xs -> f ((toJSON x):xs)))
 
 instance (FromJSON a) => JsonRpcCall (IO a) where
-  marshalAndCall version url nom f =
+  marshalAndCall version custom_elems url nom f =
     case version of
-         Version1 -> callv1 url (mkJsonRpcRequest nom (f []))
-         Version2 -> call url (mkJsonRpcRequest nom (f []))
+         Version1 -> callv1 url (mkJsonRpcRequest nom (f []) custom_elems)
+         Version2 -> call url (mkJsonRpcRequest nom (f []) custom_elems)
 
 class JsonRpcNotification a where
-  marshalAndNotify :: JsonRpcVersion -> String -> String -> ([Value] -> [Value]) -> a
+  marshalAndNotify :: JsonRpcVersion -> [Pair] -> String -> String -> ([Value] -> [Value]) -> a
 
 instance (ToJSON a, JsonRpcNotification b) => JsonRpcNotification (a -> b) where
-  marshalAndNotify version url nom f = (\x -> marshalAndNotify version url nom (\xs -> f ((toJSON x):xs)))
+  marshalAndNotify version custom_elems url nom f = (\x -> marshalAndNotify version custom_elems url nom (\xs -> f ((toJSON x):xs)))
 
 instance JsonRpcNotification (IO ()) where
-  marshalAndNotify version url nom f =
+  marshalAndNotify version custom_elems url nom f =
     case version of
-         Version1 -> notificationv1 url (mkJsonRpcNotice nom (f []))
-         Version2 -> notification url (mkJsonRpcNotice nom (f []))
+         Version1 -> notificationv1 url (mkJsonRpcNotice nom (f []) custom_elems)
+         Version2 -> notification url (mkJsonRpcNotice nom (f []) custom_elems)
 
 call :: (FromJSON a) => String -> Version2Request -> IO a
 call url request =

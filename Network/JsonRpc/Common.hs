@@ -33,10 +33,10 @@ class (JsonRpcMessage a) => JsonRpcResponse a where
   getReturnValue :: a -> Either JsonRpcException Value
 
 class (JsonRpcMessage a) => JsonRpcRequest a where
-  mkJsonRpcRequest :: String -> [Value] -> a
+  mkJsonRpcRequest :: String -> [Value] -> [Pair] -> a
 
 class (JsonRpcMessage a) => JsonRpcNotice a where
-  mkJsonRpcNotice :: String -> [Value] -> a
+  mkJsonRpcNotice :: String -> [Value] -> [Pair] -> a
 
 data JsonRpcException = JsonRpcException Int String (Maybe Value) deriving (Show)
 
@@ -51,28 +51,28 @@ instance FromJSON JsonRpcException where
   parseJSON (Object o) = JsonRpcException <$> o .: (T.pack "code") <*> o .: (T.pack "message") <*> o .:? (T.pack "data")
   parseJSON _ = return (JsonRpcException (-32600) "Invalid JSON-RPC" Nothing)
 
-data Version2Request = Request Value String [Value]
+data Version2Request = Request Value String [Value] [Pair]
 
 instance ToJSON Version2Request where
-  toJSON (Request iden meth params) =
+  toJSON (Request iden meth params custom_elems) =
     let version = "2.0"
-        mandatory = [(T.pack "jsonrpc") .= version, (T.pack "id") .= iden, (T.pack "method") .= meth]
+        mandatory = ([(T.pack "jsonrpc") .= version, (T.pack "id") .= iden, (T.pack "method") .= meth] ++ custom_elems)
     in if (null params)
           then object mandatory
           else object (mandatory ++ [(T.pack "params") .= params])
 
 instance JsonRpcMessage Version2Request where
-  getId (Request iden _ _) = iden
+  getId (Request iden _ _ _) = iden
 
 instance JsonRpcRequest Version2Request where
-  mkJsonRpcRequest meth params = Request (toJSON "hs-json-rpc") meth params
+  mkJsonRpcRequest meth params custom_elems = Request (toJSON "hs-json-rpc") meth params custom_elems
 
-data Version2Notice = Notice String [Value]
+data Version2Notice = Notice String [Value] [Pair]
 
 instance ToJSON Version2Notice where
-  toJSON (Notice meth params) =
+  toJSON (Notice meth params custom_elems) =
     let version = "2.0"
-        mandatory = [(T.pack "jsonrpc") .= version, (T.pack "method") .= meth]
+        mandatory = ([(T.pack "jsonrpc") .= version, (T.pack "method") .= meth] ++ custom_elems)
     in if (null params)
           then object mandatory
           else object (mandatory ++ [(T.pack "params") .= params])
@@ -81,7 +81,7 @@ instance JsonRpcMessage Version2Notice where
   getId _ = Null
 
 instance JsonRpcNotice Version2Notice where
-  mkJsonRpcNotice meth params = Notice meth params
+  mkJsonRpcNotice meth params custom_elems = Notice meth params custom_elems
 
 data Version2Response = Response Value (Either JsonRpcException Value)
 
@@ -104,27 +104,27 @@ instance JsonRpcMessage Version2Response where
 instance JsonRpcResponse Version2Response where
   getReturnValue (Response _ resp) = resp
 
-data Version1Request = Request1 Value String [Value]
+data Version1Request = Request1 Value String [Value] [Pair]
 
 instance ToJSON Version1Request where
-  toJSON (Request1 iden meth params) = object [(T.pack "id") .= iden, (T.pack "method") .= meth, (T.pack "params") .= params]
+  toJSON (Request1 iden meth params custom_elems) = object ([(T.pack "id") .= iden, (T.pack "method") .= meth, (T.pack "params") .= params] ++ custom_elems)
 
 instance JsonRpcMessage Version1Request where
-  getId (Request1 iden _ _) = iden
+  getId (Request1 iden _ _ _) = iden
 
 instance JsonRpcRequest Version1Request where
-  mkJsonRpcRequest meth params = Request1 (toJSON "hs-json-rpc") meth params
+  mkJsonRpcRequest meth params custom_elems = Request1 (toJSON "hs-json-rpc") meth params custom_elems
 
-data Version1Notice = Notice1 String [Value]
+data Version1Notice = Notice1 String [Value] [Pair]
 
 instance ToJSON Version1Notice where
-  toJSON (Notice1 meth params) = object [(T.pack "id") .= Null, (T.pack "method") .= meth, (T.pack "params") .= params]
+  toJSON (Notice1 meth params custom_elems) = object [(T.pack "id") .= Null, (T.pack "method") .= meth, (T.pack "params") .= params]
 
 instance JsonRpcMessage Version1Notice where
   getId _ = Null
 
 instance JsonRpcNotice Version1Notice where
-  mkJsonRpcNotice meth params = Notice1 meth params
+  mkJsonRpcNotice meth params custom_elems = Notice1 meth params custom_elems
 
 data Version1Response = Response1 Value (Either JsonRpcException Value)
 
