@@ -56,10 +56,12 @@ data Version2Request = Request Value String [Value] [Pair]
 instance ToJSON Version2Request where
   toJSON (Request iden meth params custom_elems) =
     let version = "2.0"
-        mandatory = ([(T.pack "jsonrpc") .= version, (T.pack "id") .= iden, (T.pack "method") .= meth] ++ custom_elems)
-    in if (null params)
-          then object mandatory
-          else object (mandatory ++ [(T.pack "params") .= params])
+        mandatory = [(T.pack "jsonrpc") .= version, (T.pack "id") .= iden, (T.pack "method") .= meth]
+        parameters = if (null params)
+                        then []
+                        else [(T.pack "params") .= params]
+        full_list = mandatory ++ parameters ++ custom_elems
+    in object full_list
 
 instance JsonRpcMessage Version2Request where
   getId (Request iden _ _ _) = iden
@@ -72,10 +74,12 @@ data Version2Notice = Notice String [Value] [Pair]
 instance ToJSON Version2Notice where
   toJSON (Notice meth params custom_elems) =
     let version = "2.0"
-        mandatory = ([(T.pack "jsonrpc") .= version, (T.pack "method") .= meth] ++ custom_elems)
-    in if (null params)
-          then object mandatory
-          else object (mandatory ++ [(T.pack "params") .= params])
+        mandatory = [(T.pack "jsonrpc") .= version, (T.pack "method") .= meth]
+        parameters = if (null params)
+                        then []
+                        else [(T.pack "params") .= params]
+        full_list = mandatory ++ parameters ++ custom_elems
+    in object full_list
 
 instance JsonRpcMessage Version2Notice where
   getId _ = Null
@@ -118,7 +122,7 @@ instance JsonRpcRequest Version1Request where
 data Version1Notice = Notice1 String [Value] [Pair]
 
 instance ToJSON Version1Notice where
-  toJSON (Notice1 meth params custom_elems) = object [(T.pack "id") .= Null, (T.pack "method") .= meth, (T.pack "params") .= params]
+  toJSON (Notice1 meth params custom_elems) = object ([(T.pack "id") .= Null, (T.pack "method") .= meth, (T.pack "params") .= params] ++ custom_elems)
 
 instance JsonRpcMessage Version1Notice where
   getId _ = Null
