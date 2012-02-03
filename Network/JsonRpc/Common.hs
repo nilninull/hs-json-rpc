@@ -29,7 +29,7 @@ import Control.Exception
 import Control.Monad
 
 user_agent :: String
-user_agent = "Haskell JSON-RPC Client/0.0"
+user_agent = "Haskell JSON-RPC/0.0"
 
 -- | A typeclass representing JSON-RPC messages: requests, response and notifications.
 class JsonRpcMessage a where

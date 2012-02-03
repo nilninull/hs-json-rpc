@@ -104,9 +104,7 @@ notification :: String -> Version2Notice -> IO ()
 notification url request =
   let req_id = getId request
       payload = encode request
-  in do
-       _ <- sendPost url payload
-       return ()
+  in sendPost url payload >> return ()
 
 callv1 :: (FromJSON a) => String -> Version1Request -> IO a
 callv1 url request =
@@ -121,9 +119,7 @@ notificationv1 :: String -> Version1Notice -> IO ()
 notificationv1 url request =
   let req_id = getId request
       payload = encode request
-  in do
-       _ <- sendPost url payload
-       return ()
+  in sendPost url payload >> return ()
 
 sendPost :: String -> BS.ByteString -> IO (NS.Result (Response BS.ByteString))
 sendPost url payload =
