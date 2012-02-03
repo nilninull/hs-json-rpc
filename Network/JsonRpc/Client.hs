@@ -1,5 +1,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 
+{-|
+This module contains the client functionality of JSON-RPC, whose specification may be read here (<http://json-rpc.org/wiki/specification>)
+for version 1 and here (<http://www.jsonrpc.org/spec.html>) for version 2.
+
+By convention, a notification is represented Haskell-side by a function returning a IO (), given it doesn't care about the server's
+response.
+
+Note that the functions returned by 'remote', 'notify', 'detailledRemote' and 'detailledNotify' need not have parameters.
+-}
 module Network.JsonRpc.Client (
       remote,
       detailledRemote,
@@ -21,20 +30,42 @@ import Control.Exception
 import Data.Maybe
 import qualified Data.ByteString.Lazy as BS
 
+-- | Datatype representing the protocol's version in use during a call or notification.
 data JsonRpcVersion = Version1 | Version2
 
-remote :: JsonRpcCall c => String -> String -> c
+-- | Call a remote function via JSON-RPC, using version 2 of the protocol and HTTP POST as its transport
+remote :: JsonRpcCall c
+          => String -- ^ Server URI. May contain username and password on the format username:password\@ before the hostname.
+          -> String -- ^ Method name.
+          -> c      -- ^ A function (ToJSON x1...ToJSON xn, FromJSON y) => x1 -> ... -> xn -> IO y
 remote = detailledRemote Version2 []
 
-notify :: JsonRpcNotification n => String -> String -> n
+-- | Call a remote notification on a JSON-RPC server, using version 2 of the protocol and HTTP POST as its transport
+notify :: JsonRpcNotification n
+          => String -- ^ Server URI. May contain username and password on the format username:password\@ before the hostname.
+          -> String -- ^ Notification name.
+          -> n      -- ^ A function (ToJSON x1...ToJSON xn) => x1 -> ... -> xn -> IO ()
 notify = detailledNotify Version2 []
 
-detailledRemote :: JsonRpcCall c => JsonRpcVersion -> [Pair] -> String -> String -> c
+-- | Call a remote function via JSON-RPC, specifying the protocol's version to use and customs elements to add to the request
+detailledRemote :: JsonRpcCall c
+                   => JsonRpcVersion -- ^ Protocol's version.
+                   -> [Pair]         -- ^ Custom JSON elements to add to the request
+                   -> String         -- ^ Server URI. May contain username and password on the format username:password\@ before the hostname.
+                   -> String         -- ^ Method name.
+                   -> c              -- ^ A function (ToJSON x1...ToJSON xn, FromJSON y) => x1 -> ... -> xn -> IO y
 detailledRemote version custom_elems url nom = marshalAndCall version custom_elems url nom id
 
-detailledNotify :: JsonRpcNotification n => JsonRpcVersion -> [Pair] -> String -> String -> n
+-- | Call a remote notification on a JSON-RPC server, specifying the protocol's version to use and customs elements to add to the request
+detailledNotify :: JsonRpcNotification n
+                   => JsonRpcVersion -- ^ Protocol's version.
+                   -> [Pair]         -- ^ Custom JSON elements to add to the request
+                   -> String         -- ^ Server URI. May contain username and password on the format username:password\@ before the hostname.
+                   -> String         -- ^ Notification name.
+                   -> n              -- ^ A function (ToJSON x1...ToJSON xn, FromJSON y) => x1 -> ... -> xn -> IO y
 detailledNotify version custom_elems url nom = marshalAndNotify version custom_elems url nom id
 
+-- | Type of functions representable in JSON-RPC
 class JsonRpcCall a where
   marshalAndCall :: JsonRpcVersion -> [Pair] -> String -> String -> ([Value] -> [Value]) -> a
 
@@ -47,6 +78,7 @@ instance (FromJSON a) => JsonRpcCall (IO a) where
          Version1 -> callv1 url (mkJsonRpcRequest nom (f []) custom_elems)
          Version2 -> call url (mkJsonRpcRequest nom (f []) custom_elems)
 
+-- | Type of notifications representable in JSON-RPC
 class JsonRpcNotification a where
   marshalAndNotify :: JsonRpcVersion -> [Pair] -> String -> String -> ([Value] -> [Value]) -> a
 

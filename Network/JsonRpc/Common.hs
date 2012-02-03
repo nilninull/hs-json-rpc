@@ -1,3 +1,8 @@
+{-|
+This module contains utility functions and types for the library.
+
+Client code shouldn't use this module: client-side applications should use "Network.JsonRpc.Client"
+-} 
 module Network.JsonRpc.Common (
       user_agent,
       Version2Request,
@@ -26,18 +31,24 @@ import Control.Monad
 user_agent :: String
 user_agent = "Haskell JSON-RPC Client/0.0"
 
+-- | A typeclass representing JSON-RPC messages: requests, response and notifications.
 class JsonRpcMessage a where
+  -- | A function to get the id of a JSON-RPC message. By convention, notifications have a null id. 
   getId :: a -> Value
 
+-- | A typeclass representing server responses
 class (JsonRpcMessage a) => JsonRpcResponse a where
   getReturnValue :: a -> Either JsonRpcException Value
 
+-- | A typeclass representing client requests
 class (JsonRpcMessage a) => JsonRpcRequest a where
   mkJsonRpcRequest :: String -> [Value] -> [Pair] -> a
 
+-- | A typeclass representing client notifications
 class (JsonRpcMessage a) => JsonRpcNotice a where
   mkJsonRpcNotice :: String -> [Value] -> [Pair] -> a
 
+-- | The exception type returned by "Network.JsonRpc.Client"'s functions when an error appens 
 data JsonRpcException = JsonRpcException Int String (Maybe Value) deriving (Show)
 
 instance Typeable JsonRpcException where
