@@ -2,7 +2,7 @@
 This module contains utility functions and types for the library.
 
 Client code shouldn't use this module: client-side applications should use "Network.JsonRpc.Client"
--} 
+-}
 module Network.JsonRpc.Common (
       user_agent,
       Version2Request,
@@ -59,7 +59,7 @@ instance Typeable JsonRpcException where
 instance Exception JsonRpcException
 
 instance FromJSON JsonRpcException where
-  parseJSON (Object o) = JsonRpcException <$> o .: (T.pack "code") <*> o .: (T.pack "message") <*> o .:? (T.pack "data")
+  parseJSON (Object o) = JsonRpcException <$> o .: T.pack "code" <*> o .: T.pack "message" <*> o .:? T.pack "data"
   parseJSON _ = return (JsonRpcException (-32600) "Invalid JSON-RPC" Nothing)
 
 data Version2Request = Request Value String [Value] [Pair]
@@ -67,10 +67,10 @@ data Version2Request = Request Value String [Value] [Pair]
 instance ToJSON Version2Request where
   toJSON (Request iden meth params custom_elems) =
     let version = "2.0"
-        mandatory = [(T.pack "jsonrpc") .= version, (T.pack "id") .= iden, (T.pack "method") .= meth]
-        parameters = if (null params)
+        mandatory = [T.pack "jsonrpc" .= version, T.pack "id" .= iden, T.pack "method" .= meth]
+        parameters = if null params
                         then []
-                        else [(T.pack "params") .= params]
+                        else [T.pack "params" .= params]
         full_list = mandatory ++ parameters ++ custom_elems
     in object full_list
 
@@ -78,17 +78,17 @@ instance JsonRpcMessage Version2Request where
   getId (Request iden _ _ _) = iden
 
 instance JsonRpcRequest Version2Request where
-  mkJsonRpcRequest meth params custom_elems = Request (toJSON "hs-json-rpc") meth params custom_elems
+  mkJsonRpcRequest = Request (toJSON "hs-json-rpc")
 
 data Version2Notice = Notice String [Value] [Pair]
 
 instance ToJSON Version2Notice where
   toJSON (Notice meth params custom_elems) =
     let version = "2.0"
-        mandatory = [(T.pack "jsonrpc") .= version, (T.pack "method") .= meth]
-        parameters = if (null params)
+        mandatory = [T.pack "jsonrpc" .= version, T.pack "method" .= meth]
+        parameters = if null params
                         then []
-                        else [(T.pack "params") .= params]
+                        else [T.pack "params" .= params]
         full_list = mandatory ++ parameters ++ custom_elems
     in object full_list
 
@@ -96,18 +96,18 @@ instance JsonRpcMessage Version2Notice where
   getId _ = Null
 
 instance JsonRpcNotice Version2Notice where
-  mkJsonRpcNotice meth params custom_elems = Notice meth params custom_elems
+  mkJsonRpcNotice = Notice
 
 data Version2Response = Response Value (Either JsonRpcException Value)
 
 instance FromJSON Version2Response where
   parseJSON (Object o) = do
-    v <- (o .: (T.pack "jsonrpc")) :: Parser String
-    if (v == "2.0") then
+    v <- (o .: T.pack "jsonrpc") :: Parser String
+    if v == "2.0" then
         do
-          i <- o .: (T.pack "id")
-          temp_a <- o .:? (T.pack "result")
-          a <- maybe (liftM Left (o .: (T.pack "error"))) (return . Right) temp_a
+          i <- o .: T.pack "id"
+          temp_a <- o .:? T.pack "result"
+          a <- maybe (liftM Left (o .: T.pack "error")) (return . Right) temp_a
           return (Response i a)
         else
           return (Response Null (Left (JsonRpcException (-32600) "Invalid JSON-RPC" Nothing)))
@@ -122,35 +122,35 @@ instance JsonRpcResponse Version2Response where
 data Version1Request = Request1 Value String [Value] [Pair]
 
 instance ToJSON Version1Request where
-  toJSON (Request1 iden meth params custom_elems) = object ([(T.pack "id") .= iden, (T.pack "method") .= meth, (T.pack "params") .= params] ++ custom_elems)
+  toJSON (Request1 iden meth params custom_elems) = object ([T.pack "id" .= iden, T.pack "method" .= meth, T.pack "params" .= params] ++ custom_elems)
 
 instance JsonRpcMessage Version1Request where
   getId (Request1 iden _ _ _) = iden
 
 instance JsonRpcRequest Version1Request where
-  mkJsonRpcRequest meth params custom_elems = Request1 (toJSON "hs-json-rpc") meth params custom_elems
+  mkJsonRpcRequest = Request1 (toJSON "hs-json-rpc")
 
 data Version1Notice = Notice1 String [Value] [Pair]
 
 instance ToJSON Version1Notice where
-  toJSON (Notice1 meth params custom_elems) = object ([(T.pack "id") .= Null, (T.pack "method") .= meth, (T.pack "params") .= params] ++ custom_elems)
+  toJSON (Notice1 meth params custom_elems) = object ([T.pack "id" .= Null, T.pack "method" .= meth, T.pack "params" .= params] ++ custom_elems)
 
 instance JsonRpcMessage Version1Notice where
   getId _ = Null
 
 instance JsonRpcNotice Version1Notice where
-  mkJsonRpcNotice meth params custom_elems = Notice1 meth params custom_elems
+  mkJsonRpcNotice = Notice1
 
 data Version1Response = Response1 Value (Either JsonRpcException Value)
 
 instance FromJSON Version1Response where
   parseJSON (Object o) = do
-   i <- o .: (T.pack "id")
-   a <- o .: (T.pack "result")
-   if (a == Null)
+   i <- o .: T.pack "id"
+   a <- o .: T.pack "result"
+   if a == Null
      then
        do
-         e <- o .: (T.pack "error")
+         e <- o .: T.pack "error"
          return (Response1 i (Left e))
      else return (Response1 i (Right a))
   parseJSON _ = return (Response1 Null (Left (JsonRpcException (-32600) "Invalid JSON-RPC" Nothing)))

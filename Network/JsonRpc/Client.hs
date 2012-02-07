@@ -70,7 +70,7 @@ class JsonRpcCall a where
   marshalAndCall :: JsonRpcVersion -> [Pair] -> String -> String -> ([Value] -> [Value]) -> a
 
 instance (ToJSON a, JsonRpcCall b) => JsonRpcCall (a -> b) where
-  marshalAndCall version custom_elems url nom f = (\x -> marshalAndCall version custom_elems url nom (\xs -> f ((toJSON x):xs)))
+  marshalAndCall version custom_elems url nom f x = marshalAndCall version custom_elems url nom (\xs -> f ((toJSON x):xs))
 
 instance (FromJSON a) => JsonRpcCall (IO a) where
   marshalAndCall version custom_elems url nom f =
@@ -83,7 +83,7 @@ class JsonRpcNotification a where
   marshalAndNotify :: JsonRpcVersion -> [Pair] -> String -> String -> ([Value] -> [Value]) -> a
 
 instance (ToJSON a, JsonRpcNotification b) => JsonRpcNotification (a -> b) where
-  marshalAndNotify version custom_elems url nom f = (\x -> marshalAndNotify version custom_elems url nom (\xs -> f ((toJSON x):xs)))
+  marshalAndNotify version custom_elems url nom f x = marshalAndNotify version custom_elems url nom (\xs -> f ((toJSON x):xs))
 
 instance JsonRpcNotification (IO ()) where
   marshalAndNotify version custom_elems url nom f =
@@ -132,13 +132,12 @@ processResponse :: (FromJSON a) => BS.ByteString -> Value -> IO a
 processResponse resp req_id =
   let response = fromMaybe (throw (JsonRpcException (-32019) "Invalid server response" Nothing)) (decode' resp) :: Version2Response
       resp_id = getId response
-  in if (resp_id == req_id || resp_id == Null) then
-        do
-          case (getReturnValue response) of
-              Left err -> throwIO err
-              Right val -> case (fromJSON val) of
-                                Error _ -> throwIO (JsonRpcException (-32009) "Type mismatch" Nothing)
-                                Success a -> return a
+  in if resp_id `elem` [req_id, Null] then
+        case getReturnValue response of
+            Left err -> throwIO err
+            Right val -> case fromJSON val of
+                              Error _ -> throwIO (JsonRpcException (-32009) "Type mismatch" Nothing)
+                              Success a -> return a
         else
           throwIO (JsonRpcException (-32039) "Invalid response id" Nothing)
 
@@ -146,12 +145,11 @@ processResponsev1 :: (FromJSON a) => BS.ByteString -> Value -> IO a
 processResponsev1 resp req_id =
   let response = fromMaybe (throw (JsonRpcException (-32019) "Invalid server response" Nothing)) (decode' resp) :: Version1Response
       resp_id = getId response
-  in if (resp_id == req_id) then
-        do
-          case (getReturnValue response) of
-              Left err -> throwIO err
-              Right val -> case (fromJSON val) of
-                                Error _ -> throwIO (JsonRpcException (-32009) "Type mismatch" Nothing)
-                                Success a -> return a
+  in if resp_id == req_id then
+        case getReturnValue response of
+            Left err -> throwIO err
+            Right val -> case fromJSON val of
+                              Error _ -> throwIO (JsonRpcException (-32009) "Type mismatch" Nothing)
+                              Success a -> return a
         else
           throwIO (JsonRpcException (-32039) "Invalid response id" Nothing)
