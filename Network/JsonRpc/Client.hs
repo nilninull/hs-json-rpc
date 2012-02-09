@@ -27,6 +27,7 @@ import Network.HTTP
 import Network.Stream as NS
 import Network.URI
 import Control.Exception
+import Control.Monad
 import Data.Maybe
 import qualified Data.ByteString.Lazy as BS
 
@@ -104,7 +105,7 @@ notification :: String -> Version2Notice -> IO ()
 notification url request =
   let req_id = getId request
       payload = encode request
-  in sendPost url payload >> return ()
+  in void $ sendPost url payload
 
 callv1 :: (FromJSON a) => String -> Version1Request -> IO a
 callv1 url request =
@@ -119,7 +120,7 @@ notificationv1 :: String -> Version1Notice -> IO ()
 notificationv1 url request =
   let req_id = getId request
       payload = encode request
-  in sendPost url payload >> return ()
+  in void $ sendPost url payload
 
 sendPost :: String -> BS.ByteString -> IO (NS.Result (Response BS.ByteString))
 sendPost url payload =
