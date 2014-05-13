@@ -1,3 +1,14 @@
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE KindSignatures       #-}
+{-# LANGUAGE MagicHash            #-}
+{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE PolyKinds            #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE StandaloneDeriving   #-}
+
+
 {-|
 This module contains utility functions and types for the library.
 
@@ -51,10 +62,12 @@ class (JsonRpcMessage a) => JsonRpcNotice a where
 -- | The exception type returned by "Network.JsonRpc.Client"'s functions when an error appens 
 data JsonRpcException = JsonRpcException Int String (Maybe Value) deriving (Show)
 
-instance Typeable JsonRpcException where
-  typeOf _ =
-    let con = mkTyCon "Network.JsonRpc.Common.JsonRpcException" -- mkTyCon3 "hs-json-rpc" "Network.JsonRpc.Common" "JsonRpcException"
-    in mkTyConApp con []
+deriving instance Typeable JsonRpcException
+-- instance Typeable JsonRpcException where
+--   typeRep# _ =
+--     -- let con = mkTyCon "Network.JsonRpc.Common.JsonRpcException" -- mkTyCon3 "hs-json-rpc" "Network.JsonRpc.Common" "JsonRpcException"
+--     let con = mkTyCon3 "hs-json-rpc" "Network.JsonRpc.Common" "JsonRpcException"
+--     in mkTyConApp con []
 
 instance Exception JsonRpcException
 
