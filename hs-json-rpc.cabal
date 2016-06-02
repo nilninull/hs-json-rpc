@@ -1,5 +1,5 @@
 Name:                hs-json-rpc
-Version:             0.0.0.1
+Version:             0.0.0.2
 Synopsis:            JSON-RPC client library
 Description:         hs-json-rpc is a library for writing JSON-RPC
                      client applications in Haskell.
@@ -16,7 +16,7 @@ Cabal-version:       >=1.6
 
 Library
   Exposed-modules:     Network.JsonRpc.Client
-  Build-depends:       base < 5, network < 3, HTTP >= 4000, bytestring, aeson, text
+  Build-depends:       base < 5, network-uri, HTTP >= 4000, bytestring, aeson, text
   Other-modules:       Network.JsonRpc.Common
   Extensions:          FlexibleInstances
   
